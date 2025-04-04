@@ -1,0 +1,178 @@
+name: Orders
+
+# Primary orders table with rich attributes and search service integration
+tables:
+  - name: orders
+    description: Amazon order data including status, shipment, product, and promotion details.
+    base_table:
+      database: CORTEX_AGENTS_DEMO
+      schema: PUBLIC
+      table: ORDERS
+    primary_key:
+      columns:
+        - order_id
+
+    time_dimensions:
+      - name: order_date
+        expr: TO_DATE(order_date, 'MM/DD/YY')
+        description: Date when the order was placed
+        data_type: date
+
+    measures:
+      - name: total_amount
+        expr: amount
+        description: Total monetary value of the order
+        default_aggregation: sum
+        data_type: number
+
+      - name: total_quantity
+        expr: qty
+        description: Total quantity of items in the order
+        default_aggregation: sum
+        data_type: number
+
+    dimensions:
+      - name: order_id
+        expr: order_id
+        data_type: varchar
+        cortex_search_service:
+          service: order_id_search_service
+
+      - name: status
+        expr: status
+        data_type: varchar
+        cortex_search_service:
+          service: status_search_service
+
+      - name: fulfilment
+        expr: fulfilment
+        data_type: varchar
+
+      - name: sales_channel
+        expr: sales_channel
+        data_type: varchar
+
+      - name: ship_service_level
+        expr: ship_service_level
+        data_type: varchar
+
+      - name: style
+        expr: style
+        data_type: varchar
+        cortex_search_service:
+          service: style_search_service
+
+      - name: sku
+        expr: sku
+        data_type: varchar
+        cortex_search_service:
+          service: sku_search_service
+
+      - name: category
+        expr: category
+        data_type: varchar
+
+      - name: size
+        expr: size
+        data_type: varchar
+
+      - name: asin
+        expr: asin
+        data_type: varchar
+        cortex_search_service:
+          service: asin_search_service
+
+      - name: courier_status
+        expr: courier_status
+        data_type: varchar
+
+      - name: qty
+        expr: qty
+        data_type: number
+
+      - name: currency
+        expr: currency
+        data_type: varchar
+
+      - name: amount
+        expr: amount
+        data_type: number
+
+      - name: ship_city
+        expr: ship_city
+        data_type: varchar
+        cortex_search_service:
+          service: ship_city_search_service
+
+      - name: ship_state
+        expr: ship_state
+        data_type: varchar
+
+      - name: ship_postal_code
+        expr: ship_postal_code
+        data_type: varchar
+
+      - name: ship_country
+        expr: ship_country
+        data_type: varchar
+
+      - name: promotion_ids
+        expr: promotion_ids
+        data_type: varchar
+        cortex_search_service:
+          service: promotion_id_search_service
+          literal_column: promotion_ids
+          database: CORTEX_AGENTS_DEMO
+          schema: PUBLIC
+
+      - name: b2b
+        expr: b2b
+        data_type: boolean
+
+      - name: fulfilled_by
+        expr: fulfilled_by
+        data_type: varchar
+        cortex_search_service:
+          service: fulfilled_by_search_service
+
+verified_queries:
+  - name: "total amount for Easy Ship orders in Mumbai"
+    question: "What was the total INR amount for orders fulfilled by 'Easy Ship' in Mumbai between '04/30/20' and '04/30/22'?"
+    sql: |
+      SELECT
+        SUM(amount) AS total_amount
+      FROM CORTEX_AGENTS_DEMO.PUBLIC.ORDERS
+      WHERE fulfilled_by = 'Easy Ship'
+        AND currency = 'INR'
+        AND order_date BETWEEN '04/30/20' AND '04/30/22';
+    verified_at: 1717094400
+    verified_by: analyst
+
+  - name: "count of shipped orders per category"
+    question: "Show daily total sales and number of shipped orders for each category during April 2022."
+    sql: |
+      SELECT
+        order_date AS order_day,
+        category,
+        COUNT(*) AS shipped_orders,
+        SUM(amount) AS total_sales
+      FROM CORTEX_AGENTS_DEMO.PUBLIC.ORDERS
+      WHERE status LIKE 'Shipped%'
+        AND order_date BETWEEN '04/30/20' AND '04/30/22'
+      GROUP BY order_day, category
+      ORDER BY order_day, category;
+    verified_at: 1717094400
+    verified_by: analyst
+
+  - name: "cancelled orders with quantity > 0"
+    question: "List all SKUs that were shipped and had a quantity greater than 0."
+    sql: |
+      SELECT
+        sku,
+        qty,
+        amount
+      FROM CORTEX_AGENTS_DEMO.PUBLIC.ORDERS
+      WHERE status = 'Shipped'
+        AND qty > 0;
+    verified_at: 1717094400
+    verified_by: analyst
